@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>מעקב הכנסות חודשי</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="הכנסות">
+<meta name="theme-color" content="#1C2333">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Assistant:wght@400;600;700;800&display=swap');
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    margin: 0;
+    font-family: 'Assistant', sans-serif;
+    background: #F4F5F8;
+    color: #1C2333;
+    padding-bottom: 40px;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 14px; }
+  .header { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+  .logo { width: 38px; height: 38px; border-radius: 12px; background: #1C2333; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 18px; }
+  h1 { font-size: 18px; font-weight: 800; margin: 0; }
+  .sub { font-size: 12px; color: #8A8FA3; margin: 2px 0 0; }
+  .nav { display: flex; align-items: center; justify-content: space-between; background: #fff; border: 1px solid #E7E8EF; border-radius: 16px; padding: 8px 10px; margin-bottom: 16px; }
+  .nav button { border: none; background: none; padding: 8px; border-radius: 12px; font-size: 20px; color: #1C2333; cursor: pointer; }
+  .nav button:active { background: #F0F1F6; }
+  .navlabel { font-weight: 700; font-size: 16px; }
+  .weekdays { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; text-align: center; margin-bottom: 5px; }
+  .weekdays div { font-size: 11px; font-weight: 700; color: #9498AB; padding: 4px 0; }
+  .grid { display: grid; grid-template-columns: repeat(7,1fr); gap: 6px; }
+  .cell { min-height: 84px; background: #fff; border: 1px solid #E7E8EF; border-radius: 12px; padding: 6px; display: flex; flex-direction: column; }
+  .cell.today { border: 1.5px solid #1C2333; }
+  .cell.empty { background: transparent; border: none; }
+  .cellhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+  .daynum { font-size: 12px; font-weight: 700; color: #B0B3C4; }
+  .cell.today .daynum { color: #1C2333; }
+  .addbtn { width: 20px; height: 20px; border-radius: 6px; background: #F0F1F6; border: none; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #1C2333; cursor: pointer; }
+  .entries { display: flex; flex-direction: column; gap: 3px; flex: 1; }
+  .entry { display: flex; align-items: center; justify-content: space-between; border-radius: 6px; padding: 2px 5px; cursor: pointer; }
+  .entry span:first-child { font-size: 9.5px; font-weight: 700; }
+  .entry span:last-child { font-size: 9.5px; font-weight: 600; color: #1C2333; }
+  .daytotal { font-size: 9.5px; font-weight: 700; text-align: center; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #E7E8EF; }
+  .summary { margin-top: 22px; background: #1C2333; border-radius: 18px; padding: 16px; }
+  .summarylabel { font-size: 12px; font-weight: 700; color: #9AA0C0; margin-bottom: 12px; }
+  .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
+  @media(min-width:480px){ .stats { grid-template-columns: repeat(4,1fr); } }
+  .stat { border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,0.06); }
+  .stat.grand { background: #fff; }
+  .stat .l { font-size: 11px; font-weight: 700; margin-bottom: 3px; }
+  .stat .v { font-size: 16px; font-weight: 800; color: #fff; }
+  .stat.grand .v { color: #1C2333; }
+  .stat.grand .l { color: #8A8FA3; }
+  .hint { text-align: center; font-size: 11px; color: #B0B3C4; margin-top: 14px; }
+  .overlay { position: fixed; inset: 0; background: rgba(28,35,51,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 18px; padding: 20px; width: 100%; max-width: 340px; }
+  .modalhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .modalhead h3 { font-size: 14px; font-weight: 700; margin: 0; }
+  .modalhead button { border: none; background: none; font-size: 16px; color: #8A8FA3; cursor: pointer; padding: 4px; }
+  .sources { display: flex; gap: 8px; margin-bottom: 16px; }
+  .srcbtn { flex: 1; padding: 10px 0; border-radius: 12px; border: none; font-size: 12px; font-weight: 700; cursor: pointer; }
+  label { font-size: 12px; font-weight: 600; color: #8A8FA3; display: block; margin-bottom: 4px; }
+  input[type=number] { width: 100%; border: 1.5px solid #E7E8EF; border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #1C2333; }
+  .confirm { width: 100%; padding: 12px 0; border-radius: 12px; border: none; background: #1C2333; color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; }
+  .confirm:disabled { opacity: 0.4; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div class="logo">💰</div>
+    <div>
+      <h1>מעקב הכנסות חודשי</h1>
+      <p class="sub">גריש · וולט · תן ביס</p>
+    </div>
+  </div>
+
+  <div class="nav">
+    <button id="prevBtn">›</button>
+    <div class="navlabel" id="navLabel"></div>
+    <button id="nextBtn">‹</button>
+  </div>
+
+  <div class="weekdays">
+    <div>א</div><div>ב</div><div>ג</div><div>ד</div><div>ה</div><div>ו</div><div>ש</div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <div class="summary">
+    <div class="summarylabel" id="summaryLabel"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+
+  <p class="hint">לחיצה על "+" מוסיפה הכנסה ליום. לחיצה על תג הכנסה מוחקת אותה. הנתונים נשמרים בדפדפן הזה בטלפון שלך.</p>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal">
+    <div class="modalhead">
+      <h3 id="modalTitle"></h3>
+      <button id="closeModal">✕</button>
+    </div>
+    <div class="sources" id="sourcesRow"></div>
+    <label>סכום בשקלים</label>
+    <input type="number" inputmode="decimal" id="amountInput" placeholder="0" />
+    <button class="confirm" id="confirmBtn">הוספה</button>
+  </div>
+</div>
+
+<script>
+const SOURCES = {
+  grish: { label: "גריש", color: "#6C5CE7", soft: "#EFEBFC" },
+  wolt: { label: "וולט", color: "#00A8AE", soft: "#E3F6F6" },
+  tenbis: { label: "תן ביס", color: "#F0631D", soft: "#FDEAE0" },
+};
+const HEB_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+
+let today = new Date();
+let year = today.getFullYear();
+let month = today.getMonth();
+let modalDay = null;
+let formSource = "grish";
+
+function monthKey(y,m){ return `income:${y}-${String(m+1).padStart(2,'0')}`; }
+function dateKey(y,m,d){ return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`; }
+function daysInMonth(y,m){ return new Date(y,m+1,0).getDate(); }
+function firstWeekday(y,m){ return new Date(y,m,1).getDay(); }
+function fmt(n){ return n.toLocaleString('he-IL', { maximumFractionDigits: 2 }); }
+
+function loadEntries(){
+  try { return JSON.parse(localStorage.getItem(monthKey(year,month)) || '{}'); }
+  catch(e){ return {}; }
+}
+function saveEntries(entries){
+  localStorage.setItem(monthKey(year,month), JSON.stringify(entries));
+}
+
+function render(){
+  document.getElementById('navLabel').textContent = `${HEB_MONTHS[month]} ${year}`;
+  document.getElementById('summaryLabel').textContent = `סיכום ${HEB_MONTHS[month]} ${year}`;
+  const entries = loadEntries();
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  const nDays = daysInMonth(year,month);
+  const start = firstWeekday(year,month);
+  for(let i=0;i<start;i++){
+    const c = document.createElement('div');
+    c.className = 'cell empty';
+    grid.appendChild(c);
+  }
+  const isToday = (d) => d===today.getDate() && month===today.getMonth() && year===today.getFullYear();
+  for(let d=1; d<=nDays; d++){
+    const key = dateKey(year,month,d);
+    const list = entries[key] || [];
+    const dayTotal = list.reduce((s,e)=>s+e.amount,0);
+    const cell = document.createElement('div');
+    cell.className = 'cell' + (isToday(d) ? ' today' : '');
+    const head = document.createElement('div');
+    head.className = 'cellhead';
+    const num = document.createElement('span');
+    num.className = 'daynum';
+    num.textContent = d;
+    const addBtn = document.createElement('button');
+    addBtn.className = 'addbtn';
+    addBtn.textContent = '+';
+    addBtn.onclick = () => openModal(d);
+    head.appendChild(num);
+    head.appendChild(addBtn);
+    cell.appendChild(head);
+
+    const entriesDiv = document.createElement('div');
+    entriesDiv.className = 'entries';
+    list.forEach(e => {
+      const row = document.createElement('div');
+      row.className = 'entry';
+      row.style.background = SOURCES[e.source].soft;
+      row.title = 'לחץ להסרה';
+      row.onclick = () => removeEntry(d, e.id);
+      const l = document.createElement('span');
+      l.style.color = SOURCES[e.source].color;
+      l.textContent = SOURCES[e.source].label;
+      const v = document.createElement('span');
+      v.textContent = fmt(e.amount);
+      row.appendChild(l);
+      row.appendChild(v);
+      entriesDiv.appendChild(row);
+    });
+    cell.appendChild(entriesDiv);
+
+    if(dayTotal > 0){
+      const tot = document.createElement('div');
+      tot.className = 'daytotal';
+      tot.textContent = fmt(dayTotal) + ' ₪';
+      cell.appendChild(tot);
+    }
+    grid.appendChild(cell);
+  }
+
+  const totals = { grish:0, wolt:0, tenbis:0 };
+  Object.values(entries).forEach(list => list.forEach(e => { if(totals[e.source]!==undefined) totals[e.source]+=e.amount; }));
+  const grand = totals.grish + totals.wolt + totals.tenbis;
+  const statsDiv = document.getElementById('stats');
+  statsDiv.innerHTML = '';
+  ['grish','wolt','tenbis'].forEach(s => {
+    const el = document.createElement('div');
+    el.className = 'stat';
+    el.innerHTML = `<div class="l" style="color:${SOURCES[s].color}">${SOURCES[s].label}</div><div class="v">${fmt(totals[s])} ₪</div>`;
+    statsDiv.appendChild(el);
+  });
+  const grandEl = document.createElement('div');
+  grandEl.className = 'stat grand';
+  grandEl.innerHTML = `<div class="l">סה"כ החודש</div><div class="v">${fmt(grand)} ₪</div>`;
+  statsDiv.appendChild(grandEl);
+}
+
+function openModal(day){
+  modalDay = day;
+  formSource = 'grish';
+  document.getElementById('modalTitle').textContent = `הוספת הכנסה ליום ${day} ב${HEB_MONTHS[month]}`;
+  document.getElementById('amountInput').value = '';
+  const row = document.getElementById('sourcesRow');
+  row.innerHTML = '';
+  Object.entries(SOURCES).forEach(([key,s]) => {
+    const btn = document.createElement('button');
+    btn.className = 'srcbtn';
+    btn.textContent = s.label;
+    btn.style.background = key===formSource ? s.color : s.soft;
+    btn.style.color = key===formSource ? '#fff' : s.color;
+    btn.onclick = () => { formSource = key; updateSourceButtons(); };
+    btn.dataset.key = key;
+    row.appendChild(btn);
+  });
+  document.getElementById('overlay').classList.add('open');
+  document.getElementById('amountInput').focus();
+}
+function updateSourceButtons(){
+  document.querySelectorAll('.srcbtn').forEach(btn => {
+    const key = btn.dataset.key;
+    const s = SOURCES[key];
+    btn.style.background = key===formSource ? s.color : s.soft;
+    btn.style.color = key===formSource ? '#fff' : s.color;
+  });
+}
+function closeModal(){
+  document.getElementById('overlay').classList.remove('open');
+  modalDay = null;
+}
+function confirmAdd(){
+  const val = parseFloat(document.getElementById('amountInput').value);
+  if(!modalDay || isNaN(val) || val<=0) return;
+  const entries = loadEntries();
+  const key = dateKey(year,month,modalDay);
+  const list = entries[key] ? [...entries[key]] : [];
+  list.push({ id: Date.now()+'-'+Math.random().toString(36).slice(2,7), source: formSource, amount: val });
+  entries[key] = list;
+  saveEntries(entries);
+  closeModal();
+  render();
+}
+function removeEntry(day, id){
+  const entries = loadEntries();
+  const key = dateKey(year,month,day);
+  const list = (entries[key]||[]).filter(e => e.id !== id);
+  if(list.length) entries[key] = list; else delete entries[key];
+  saveEntries(entries);
+  render();
+}
+
+document.getElementById('prevBtn').onclick = () => { month--; if(month<0){month=11; year--;} render(); };
+document.getElementById('nextBtn').onclick = () => { month++; if(month>11){month=0; year++;} render(); };
+document.getElementById('closeModal').onclick = closeModal;
+document.getElementById('overlay').onclick = (e) => { if(e.target.id==='overlay') closeModal(); };
+document.getElementById('confirmBtn').onclick = confirmAdd;
+document.getElementById('amountInput').addEventListener('keydown', (e) => { if(e.key==='Enter') confirmAdd(); });
+
+render();
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
