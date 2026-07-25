@@ -45,7 +45,23 @@
   .entry span:first-child { font-size: 9.5px; font-weight: 700; }
   .entry span:last-child { font-size: 9.5px; font-weight: 600; color: #1C2333; }
   .daytotal { font-size: 9.5px; font-weight: 700; text-align: center; margin-top: 4px; padding-top: 4px; border-top: 1px dashed #E7E8EF; }
-  .summary { margin-top: 22px; background: #1C2333; border-radius: 18px; padding: 16px; }
+  .goalcard { margin-top: 18px; background: #fff; border: 1px solid #E7E8EF; border-radius: 18px; padding: 16px; }
+  .goalhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .goaltitle { font-size: 12px; font-weight: 700; color: #8A8FA3; }
+  .goalamount { display: flex; align-items: center; gap: 4px; }
+  .goalamount span { font-size: 13px; font-weight: 800; color: #1C2333; }
+  .goaledit { border: none; background: #F0F1F6; color: #6C5CE7; font-size: 10px; font-weight: 700; border-radius: 8px; padding: 4px 8px; cursor: pointer; }
+  .goalinput { width: 90px; border: 1.5px solid #E7E8EF; border-radius: 8px; padding: 4px 8px; font-size: 12px; font-weight: 700; text-align: center; }
+  .progressbar { position: relative; height: 12px; background: #F0F1F6; border-radius: 999px; overflow: hidden; margin-bottom: 8px; }
+  .progressfill { position: absolute; top: 0; right: 0; height: 100%; border-radius: 999px; background: linear-gradient(90deg, #6C5CE7, #00A8AE); transition: width 0.3s ease; }
+  .goalrow { display: flex; align-items: center; justify-content: space-between; font-size: 11.5px; font-weight: 700; color: #1C2333; margin-bottom: 4px; }
+  .goalpace { font-size: 11px; color: #8A8FA3; font-weight: 600; }
+  .goalpace.done { color: #1E9E6F; font-weight: 700; }
+  .weekcard { margin-top: 14px; display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+  .weekchip { flex: 0 0 auto; background: #fff; border: 1px solid #E7E8EF; border-radius: 12px; padding: 8px 12px; min-width: 84px; text-align: center; }
+  .weekchip .l { font-size: 10px; font-weight: 700; color: #8A8FA3; margin-bottom: 3px; }
+  .weekchip .v { font-size: 13px; font-weight: 800; color: #1C2333; }
+  .summary { margin-top: 14px; background: #1C2333; border-radius: 18px; padding: 16px; }
   .summarylabel { font-size: 12px; font-weight: 700; color: #9AA0C0; margin-bottom: 12px; }
   .stats { display: grid; grid-template-columns: repeat(2,1fr); gap: 10px; }
   @media(min-width:480px){ .stats { grid-template-columns: repeat(4,1fr); } }
@@ -91,6 +107,24 @@
   </div>
 
   <div class="grid" id="grid"></div>
+
+  <div class="goalcard">
+    <div class="goalhead">
+      <div class="goaltitle">יעד חודשי</div>
+      <div class="goalamount" id="goalAmountRow">
+        <span id="goalAmountText"></span>
+        <button class="goaledit" id="goalEditBtn">שינוי</button>
+      </div>
+    </div>
+    <div class="progressbar"><div class="progressfill" id="progressFill" style="width:0%"></div></div>
+    <div class="goalrow">
+      <span id="goalEarned"></span>
+      <span id="goalPercent"></span>
+    </div>
+    <div class="goalpace" id="goalPace"></div>
+  </div>
+
+  <div class="weekcard" id="weekRow"></div>
 
   <div class="summary">
     <div class="summarylabel" id="summaryLabel"></div>
@@ -139,6 +173,39 @@ function loadEntries(){
 }
 function saveEntries(entries){
   localStorage.setItem(monthKey(year,month), JSON.stringify(entries));
+}
+
+function loadGoal(){
+  const v = parseFloat(localStorage.getItem('income:goal'));
+  return isNaN(v) || v <= 0 ? 12000 : v;
+}
+function saveGoal(v){
+  localStorage.setItem('income:goal', String(v));
+}
+
+// Groups the month's days into calendar-week rows (same rows shown in the grid)
+// and sums the entries that fall in each row.
+function computeWeeks(entries, y, m){
+  const nDays = daysInMonth(y,m);
+  const start = firstWeekday(y,m);
+  const weeks = [];
+  let current = { total: 0, hasDay: false };
+  let col = 0;
+  for(let i=0;i<start;i++){ col++; }
+  for(let d=1; d<=nDays; d++){
+    const key = dateKey(y,m,d);
+    const list = entries[key] || [];
+    current.total += list.reduce((s,e)=>s+e.amount,0);
+    current.hasDay = true;
+    col++;
+    if(col === 7){
+      weeks.push(current);
+      current = { total: 0, hasDay: false };
+      col = 0;
+    }
+  }
+  if(current.hasDay) weeks.push(current);
+  return weeks;
 }
 
 function render(){
@@ -217,6 +284,49 @@ function render(){
   grandEl.className = 'stat grand';
   grandEl.innerHTML = `<div class="l">סה"כ החודש</div><div class="v">${fmt(grand)} ₪</div>`;
   statsDiv.appendChild(grandEl);
+
+  renderGoal(grand);
+  renderWeeks(entries);
+}
+
+function renderGoal(grand){
+  const goal = loadGoal();
+  document.getElementById('goalAmountText').textContent = fmt(goal) + ' ₪';
+  const pct = Math.min(100, (grand / goal) * 100);
+  document.getElementById('progressFill').style.width = pct + '%';
+  document.getElementById('goalEarned').textContent = `הרווחת ${fmt(grand)} ₪`;
+  document.getElementById('goalPercent').textContent = `${Math.round(Math.min(100, (grand/goal)*100))}%`;
+
+  const paceEl = document.getElementById('goalPace');
+  const remaining = goal - grand;
+  const isCurrentMonth = year===today.getFullYear() && month===today.getMonth();
+
+  if(remaining <= 0){
+    paceEl.textContent = '🎉 הגעת ליעד החודש!';
+    paceEl.className = 'goalpace done';
+    return;
+  }
+  paceEl.className = 'goalpace';
+  if(isCurrentMonth){
+    const nDays = daysInMonth(year,month);
+    const daysLeft = Math.max(1, nDays - today.getDate() + 1);
+    const perDay = remaining / daysLeft;
+    paceEl.textContent = `נשארו ${fmt(remaining)} ₪ להשלמת היעד · ${daysLeft} ימים נותרו בחודש · כ-${fmt(perDay)} ₪ ליום`;
+  } else {
+    paceEl.textContent = `נשארו ${fmt(remaining)} ₪ להשלמת היעד`;
+  }
+}
+
+function renderWeeks(entries){
+  const weeks = computeWeeks(entries, year, month);
+  const row = document.getElementById('weekRow');
+  row.innerHTML = '';
+  weeks.forEach((w, i) => {
+    const chip = document.createElement('div');
+    chip.className = 'weekchip';
+    chip.innerHTML = `<div class="l">שבוע ${i+1}</div><div class="v">${fmt(w.total)} ₪</div>`;
+    row.appendChild(chip);
+  });
 }
 
 function openModal(day){
@@ -271,6 +381,31 @@ function removeEntry(day, id){
   saveEntries(entries);
   render();
 }
+
+document.getElementById('goalEditBtn').onclick = () => {
+  const current = loadGoal();
+  const rowEl = document.getElementById('goalAmountRow');
+  rowEl.innerHTML = '';
+  const input = document.createElement('input');
+  input.type = 'number';
+  input.className = 'goalinput';
+  input.value = current;
+  input.inputMode = 'decimal';
+  const save = document.createElement('button');
+  save.className = 'goaledit';
+  save.textContent = 'שמירה';
+  const doSave = () => {
+    const v = parseFloat(input.value);
+    if(!isNaN(v) && v > 0) saveGoal(v);
+    render();
+  };
+  save.onclick = doSave;
+  input.addEventListener('keydown', (e) => { if(e.key==='Enter') doSave(); });
+  rowEl.appendChild(input);
+  rowEl.appendChild(save);
+  input.focus();
+  input.select();
+};
 
 document.getElementById('prevBtn').onclick = () => { month--; if(month<0){month=11; year--;} render(); };
 document.getElementById('nextBtn').onclick = () => { month++; if(month>11){month=0; year++;} render(); };
